@@ -1,41 +1,51 @@
 #!/bin/bash
 
-# CAMINHO DO ARQUIVO QUE VOCÊ DESEJA ORGANIZAR
 PASTA="$1"
 
-# echo "$PASTA"
+if [ -z "$PASTA" ]; then
+    echo "Uso: $0 <diretorio>"
+    exit 1
+fi
 
-PASTAS_EXISTENTES=()
+# Função que decide o destino do arquivo
+classificar_arquivo() {
+    local arquivo="$1"
+    local nome=$(basename "$arquivo")
 
-# for para percorrer pastas existentes
-for pasta in "$PASTA"/*; do
-    if [ -d "$pasta" ]; then
-    	nome_pasta=${pasta##*/}
-        PASTAS_EXISTENTES+=("$nome_pasta")
+    # regra: include (.vh)
+    if [[ "$arquivo" == *.vh ]]; then
+        echo "include"
+
+    # regra: scripts (.tcl, .do, .sh)
+    elif [[ "$arquivo" == *.tcl || "$arquivo" == *.do || "$arquivo" == *.sh ]]; then
+        echo "scripts"
+
+    # regra: testbench
+    elif [[ "$nome" == *_tb.v || "$nome" == *test* ]]; then
+        echo "tb"
+
+    # regra: src (.v que não são testbench)
+    elif [[ "$arquivo" == *.v ]]; then
+        echo "src"
+
+    # regra: docs (fallback)
+    else
+        echo "docs"
     fi
-done
+}
 
-# printo as pastas encontradas
-echo "${PASTAS_EXISTENTES[@]}"
-echo ""
-
+# Percorrendo arquivos
 for arquivo in "$PASTA"/*; do
     if [ -f "$arquivo" ]; then
-        echo "$arquivo"
 
-        # pegando a extensao
-        extensao="${arquivo##*.}"
-        echo "$extensao"
+        destino=$(classificar_arquivo "$arquivo")
 
-		# testando se a extensao atual existe na lista de pastas criadas
-        if [[ " ${PASTAS_EXISTENTES[*]} " == *" $extensao "* ]]; then
-        	# se existir, entao nao crio a pasta
-        	echo ""
-            echo "Encontrado"
-        else 
-        	echo ""
-        	echo "vou criar essa nova pasta $extensao"
-        	mkdir "$1/$extensao"
-        fi
+        echo "Arquivo: $arquivo -> Pasta: $destino"
+
+        # cria a pasta se não existir
+        mkdir -p "$PASTA/$destino"
+
+        # move o arquivo
+        mv "$arquivo" "$PASTA/$destino/"
     fi
 done
